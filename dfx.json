@@ -1,0 +1,7 @@
+{
+  "canisters": {
+    "dht": {
+      "main": "src/main.mo"
+    }
+  }
+}

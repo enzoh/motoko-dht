@@ -1,0 +1,6 @@
+[submodule "vendor/hex"]
+	path = vendor/hex
+	url = https://github.com/enzoh/motoko-hex
+[submodule "vendor/sha"]
+	path = vendor/sha
+	url = https://github.com/enzoh/motoko-sha

@@ -1,7 +1,7 @@
-import Array "mo:stdlib/array";
-import Iter "mo:stdlib/iter";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
 import Prim "mo:prim";
-import SHA256 "../vendor/sha/src/sha256";
+import SHA256 "../vendor/sha/src/SHA256";
 
 module {
 

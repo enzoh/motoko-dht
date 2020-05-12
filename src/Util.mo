@@ -1,6 +1,6 @@
-import Hex "../vendor/hex/src/hex";
-import Key "key";
-import Result "mo:stdlib/result";
+import Hex "../vendor/hex/src/Hex";
+import Key "Key";
+import Result "mo:base/Result";
 
 module {
 

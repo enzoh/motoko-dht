@@ -1,6 +1,8 @@
 [submodule "vendor/hex"]
+	branch = 86368f35cc4d23d7f910a9d7c92cb94151d47038
 	path = vendor/hex
 	url = https://github.com/enzoh/motoko-hex
 [submodule "vendor/sha"]
+	branch = 722ccfa9cf17c720dd956fb9e985dd62874e6883
 	path = vendor/sha
 	url = https://github.com/enzoh/motoko-sha

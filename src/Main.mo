@@ -1,10 +1,14 @@
 import Array "mo:base/Array";
 import AssocList "mo:base/AssocList";
+import CRC8 "../vendor/crc/src/CRC8";
 import Hex "../vendor/hex/src/Hex";
+import Iter "mo:base/Iter";
 import Key "Key";
 import List "mo:base/List";
 import Option "mo:base/Option";
 import Prelude "mo:base/Prelude";
+import Prim "mo:prim";
+import Principal "mo:base/Principal";
 import Util "Util";
 
 actor {
@@ -19,13 +23,23 @@ actor {
   private var registry : List<Key> = null;
   private var db : AssocList<[Word8], [Word8]> = null;
 
-  public func initialize(id : ID) : async () {
+  public func initialize() : async () {
     if (ready) {
       Prelude.printLn("WARN: Canister already initialized!");
     };
+    let id = await whoami();
+    Prelude.printLn("TRACE: id = " # id);
     await register(id);
     self := ?id;
     ready := true;
+  };
+
+  public shared {
+    caller = caller;
+  } func whoami() : async ID {
+    let base = Iter.toArray<Word8>(Prim.blobOfPrincipal(caller).bytes());
+    let crc8 = CRC8.crc8(base);
+    Hex.encode(Array.append<Word8>(base, [crc8]));
   };
 
   public func register(id : ID) : async () {

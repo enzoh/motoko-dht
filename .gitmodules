@@ -6,3 +6,7 @@
 	branch = 722ccfa9cf17c720dd956fb9e985dd62874e6883
 	path = vendor/sha
 	url = https://github.com/enzoh/motoko-sha
+[submodule "vendor/crc"]
+	branch = 2b21477d88d2aeba3d7fbe516725fc1a9c16e844
+	path = vendor/crc
+	url = https://github.com/enzoh/motoko-crc

@@ -1,5 +1,4 @@
 import Array "mo:base/Array";
-import AssocList "mo:base/AssocList";
 import CRC8 "../vendor/crc/src/CRC8";
 import Hex "../vendor/hex/src/Hex";
 import Iter "mo:base/Iter";
@@ -8,27 +7,26 @@ import List "mo:base/List";
 import Option "mo:base/Option";
 import Prelude "mo:base/Prelude";
 import Prim "mo:prim";
-import Principal "mo:base/Principal";
+import RBTree "../tmp/RBTree";
 import Util "Util";
 
 actor {
 
-  private type AssocList<K, V> = AssocList.AssocList<K, V>;
   private type ID = Text;
   private type Key = Key.Key;
   private type List<T> = List.List<T>;
 
   private var ready = false;
-  private var self : ?ID = null;
   private var registry : List<Key> = null;
-  private var db : AssocList<[Word8], [Word8]> = null;
+  private var self : ?ID = null;
+
+  private let db = RBTree.RBTree<[Word8], [Word8]>(Util.compare);
 
   public func initialize() : async () {
     if (ready) {
       Prelude.printLn("WARN: Canister already initialized!");
     };
-    let id = await whoami();
-    Prelude.printLn("TRACE: id = " # id);
+    let id = await identity();
     await register(id);
     self := ?id;
     ready := true;
@@ -36,7 +34,7 @@ actor {
 
   public shared {
     caller = caller;
-  } func whoami() : async ID {
+  } func identity() : async ID {
     let base = Iter.toArray<Word8>(Prim.blobOfPrincipal(caller).bytes());
     let crc8 = CRC8.crc8(base);
     Hex.encode(Array.append<Word8>(base, [crc8]));
@@ -69,7 +67,7 @@ actor {
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
     if (closest == Option.unwrap<ID>(self)) {
-      AssocList.find<[Word8], [Word8]>(db, key, eq);
+      db.find(key);
     } else {
       let shard = actor ("ic:" # closest) : actor {
         get(key : [Word8]) : async ?[Word8];
@@ -87,18 +85,12 @@ actor {
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
     if (closest == Option.unwrap<ID>(self)) {
-      db := AssocList.replace<[Word8], [Word8]>(db, key, eq, ?value).0;
+      let _ = db.insert(key, value);
     } else {
       let shard = actor ("ic:" # closest) : actor {
         put(key : [Word8], value : [Word8]) : async ();
       };
       await shard.put(key, value);
     };
-  };
-
-  private func eq(a : [Word8], b : [Word8]) : Bool {
-    Array.equals<Word8>(a, b, func (ai, bi) {
-      return ai == bi;
-    })
   };
 };

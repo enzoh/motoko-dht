@@ -2,13 +2,13 @@ import Array "mo:base/Array";
 import CRC8 "../vendor/crc/src/CRC8";
 import Hex "../vendor/hex/src/Hex";
 import Iter "mo:base/Iter";
-import Key "Key";
+import Key "../src/Key";
 import List "mo:base/List";
-import Log "Log";
+import Log "../src/Log";
 import Option "mo:base/Option";
 import Prim "mo:prim";
 import RBTree "../tmp/RBTree";
-import Util "Util";
+import Util "../src/Util";
 
 actor {
 

@@ -1,41 +1,56 @@
 import Array "mo:base/Array";
-import AssocList "mo:base/AssocList";
+import CRC8 "../vendor/crc/src/CRC8";
 import Hex "../vendor/hex/src/Hex";
+import Iter "mo:base/Iter";
 import Key "Key";
 import List "mo:base/List";
+import Log "Log";
 import Option "mo:base/Option";
-import Prelude "mo:base/Prelude";
+import Prim "mo:prim";
+import RBTree "../tmp/RBTree";
 import Util "Util";
 
 actor {
 
-  private type AssocList<K, V> = AssocList.AssocList<K, V>;
   private type ID = Text;
   private type Key = Key.Key;
   private type List<T> = List.List<T>;
 
   private var ready = false;
-  private var self : ?ID = null;
   private var registry : List<Key> = null;
-  private var db : AssocList<[Word8], [Word8]> = null;
+  private var self : ?ID = null;
 
-  public func initialize(id : ID) : async () {
+  private let db = RBTree.RBTree<[Word8], [Word8]>(Util.compare);
+
+  public func initialize() : async () {
+    Log.info("Initializing...");
     if (ready) {
-      Prelude.printLn("WARN: Canister already initialized!");
+      Log.warn("Canister already initialized!");
     };
+    let id = await identity();
+    Log.trace("id = " # id);
     await register(id);
     self := ?id;
     ready := true;
   };
 
+  public shared {
+    caller = caller;
+  } func identity() : async ID {
+    let base = Iter.toArray<Word8>(Prim.blobOfPrincipal(caller).bytes());
+    let crc8 = CRC8.crc8(base);
+    Hex.encode(Array.append<Word8>(base, [crc8]));
+  };
+
   public func register(id : ID) : async () {
+    Log.info("Registering...");
+    Log.trace("id = " # id);
     switch (Util.hexToKey(id)) {
       case (#ok key) {
         registry := List.push<Key>(key, registry);
       };
       case (#err (#msg str)) {
-        Prelude.printLn("ERROR: " # str);
-        Prelude.unreachable();
+        Log.fatal(str);
       };
     };
   };
@@ -47,15 +62,16 @@ actor {
   };
 
   public func get(key : [Word8]) : async ?[Word8] {
+    Log.info("Getting...");
     if (not ready) {
-      Prelude.printLn("ERROR: Canister not yet initialized!");
-      Prelude.unreachable();
+      Log.fatal("Canister not yet initialized!");
     };
     let to = Key.key(key);
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
+    Log.trace("closest = " # closest);
     if (closest == Option.unwrap<ID>(self)) {
-      AssocList.find<[Word8], [Word8]>(db, key, eq);
+      db.find(key);
     } else {
       let shard = actor ("ic:" # closest) : actor {
         get(key : [Word8]) : async ?[Word8];
@@ -65,26 +81,21 @@ actor {
   };
 
   public func put(key : [Word8], value : [Word8]) : async () {
+    Log.info("Putting...");
     if (not ready) {
-      Prelude.printLn("ERROR: Canister not yet initialized!");
-      Prelude.unreachable();
+      Log.fatal("Canister not yet initialized!");
     };
     let to = Key.key(key);
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
+    Log.trace("closest = " # closest);
     if (closest == Option.unwrap<ID>(self)) {
-      db := AssocList.replace<[Word8], [Word8]>(db, key, eq, ?value).0;
+      let _ = db.insert(key, value);
     } else {
       let shard = actor ("ic:" # closest) : actor {
         put(key : [Word8], value : [Word8]) : async ();
       };
       await shard.put(key, value);
     };
-  };
-
-  private func eq(a : [Word8], b : [Word8]) : Bool {
-    Array.equals<Word8>(a, b, func (ai, bi) {
-      return ai == bi;
-    })
   };
 };

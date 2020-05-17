@@ -4,8 +4,8 @@ import Hex "../vendor/hex/src/Hex";
 import Iter "mo:base/Iter";
 import Key "Key";
 import List "mo:base/List";
+import Log "Log";
 import Option "mo:base/Option";
-import Prelude "mo:base/Prelude";
 import Prim "mo:prim";
 import RBTree "../tmp/RBTree";
 import Util "Util";
@@ -23,10 +23,12 @@ actor {
   private let db = RBTree.RBTree<[Word8], [Word8]>(Util.compare);
 
   public func initialize() : async () {
+    Log.info("Initializing...");
     if (ready) {
-      Prelude.printLn("WARN: Canister already initialized!");
+      Log.warn("Canister already initialized!");
     };
     let id = await identity();
+    Log.trace("id = " # id);
     await register(id);
     self := ?id;
     ready := true;
@@ -41,13 +43,14 @@ actor {
   };
 
   public func register(id : ID) : async () {
+    Log.info("Registering...");
+    Log.trace("id = " # id);
     switch (Util.hexToKey(id)) {
       case (#ok key) {
         registry := List.push<Key>(key, registry);
       };
       case (#err (#msg str)) {
-        Prelude.printLn("ERROR: " # str);
-        Prelude.unreachable();
+        Log.fatal(str);
       };
     };
   };
@@ -59,13 +62,14 @@ actor {
   };
 
   public func get(key : [Word8]) : async ?[Word8] {
+    Log.info("Getting...");
     if (not ready) {
-      Prelude.printLn("ERROR: Canister not yet initialized!");
-      Prelude.unreachable();
+      Log.fatal("Canister not yet initialized!");
     };
     let to = Key.key(key);
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
+    Log.trace("closest = " # closest);
     if (closest == Option.unwrap<ID>(self)) {
       db.find(key);
     } else {
@@ -77,13 +81,14 @@ actor {
   };
 
   public func put(key : [Word8], value : [Word8]) : async () {
+    Log.info("Putting...");
     if (not ready) {
-      Prelude.printLn("ERROR: Canister not yet initialized!");
-      Prelude.unreachable();
+      Log.fatal("Canister not yet initialized!");
     };
     let to = Key.key(key);
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
+    Log.trace("closest = " # closest);
     if (closest == Option.unwrap<ID>(self)) {
       let _ = db.insert(key, value);
     } else {

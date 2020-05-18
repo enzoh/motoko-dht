@@ -12,13 +12,13 @@ import Util "../src/Util";
 
 actor {
 
-  private type ID = Text;
+  private type Id = Text;
   private type Key = Key.Key;
   private type List<T> = List.List<T>;
 
   private var ready = false;
   private var registry : List<Key> = null;
-  private var self : ?ID = null;
+  private var self : ?Id = null;
 
   private let db = RBTree.RBTree<[Word8], [Word8]>(Util.compare);
 
@@ -36,15 +36,18 @@ actor {
 
   public shared {
     caller = caller;
-  } func identity() : async ID {
+  } func identity() : async Id {
     let base = Iter.toArray<Word8>(Prim.blobOfPrincipal(caller).bytes());
     let crc8 = CRC8.crc8(base);
     Hex.encode(Array.append<Word8>(base, [crc8]));
   };
 
-  public func register(id : ID) : async () {
+  public func register(id : Id) : async () {
     Log.info("Registering...");
     Log.trace("id = " # id);
+    if (not Util.isId(id)) {
+      Log.fatal("Invalid identifier!");
+    };
     switch (Util.hexToKey(id)) {
       case (#ok key) {
         registry := List.push<Key>(key, registry);
@@ -55,9 +58,9 @@ actor {
     };
   };
 
-  public func network() : async List<ID> {
-    List.foldRight<Key, List<ID>>(registry, null, func (key, accum) {
-      List.push<ID>(Hex.encode(key.preimage), accum);
+  public func network() : async List<Id> {
+    List.foldRight<Key, List<Id>>(registry, null, func (key, accum) {
+      List.push<Id>(Hex.encode(key.preimage), accum);
     });
   };
 
@@ -70,7 +73,7 @@ actor {
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
     Log.trace("closest = " # closest);
-    if (closest == Option.unwrap<ID>(self)) {
+    if (closest == Option.unwrap<Id>(self)) {
       db.find(key);
     } else {
       let shard = actor ("ic:" # closest) : actor {
@@ -89,7 +92,7 @@ actor {
     let from = List.toArray<Key>(registry);
     let closest = Hex.encode(Key.sortByDistance(to, from)[0].preimage);
     Log.trace("closest = " # closest);
-    if (closest == Option.unwrap<ID>(self)) {
+    if (closest == Option.unwrap<Id>(self)) {
       let _ = db.insert(key, value);
     } else {
       let shard = actor ("ic:" # closest) : actor {

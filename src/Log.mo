@@ -16,10 +16,6 @@ module {
 
   public func error(message : Text) {
     Prelude.printLn("ERROR: " # message);
-  };
-
-  public func fatal(message : Text) {
-    Prelude.printLn("FATAL: " # message);
     Prelude.unreachable();
   };
 };

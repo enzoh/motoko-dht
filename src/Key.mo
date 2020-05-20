@@ -1,4 +1,5 @@
 import Array "mo:base/Array";
+import Hex "../vendor/hex/src/Hex";
 import Iter "mo:base/Iter";
 import Prim "mo:prim";
 import SHA256 "../vendor/sha/src/SHA256";
@@ -35,6 +36,14 @@ module {
       };
     };
     return 0;
+  };
+
+  public func show(key : Key) : Text {
+    "{\n  preimage = " #
+    Hex.encode(key.preimage) #
+    ";\n  image = " #
+    Hex.encode(key.image) #
+    ";\n}"
   };
 
   public func sort(keys : [Key]) : [Key] {

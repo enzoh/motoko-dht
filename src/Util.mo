@@ -1,15 +1,20 @@
 import Array "mo:base/Array";
 import CRC8 "../vendor/crc/src/CRC8";
 import Hex "../vendor/hex/src/Hex";
+import Iter "mo:base/Iter";
 import Key "Key";
+import List "mo:base/List";
 import Nat "mo:base/Nat";
 import Ord "../tmp/Ord";
+import Prelude "mo:base/Prelude";
+import Prim "mo:prim";
 import Result "mo:base/Result";
 
 module {
 
   private type Id = Text;
   private type Key = Key.Key;
+  private type List<T> = List.List<T>;
   private type Ordering = Ord.Ordering;
   private type Result<Ok, Err> = Result.Result<Ok, Err>;
 
@@ -36,9 +41,19 @@ module {
     return #eq;
   };
 
-  public func hexToKey(text : Text) : Result<Key, Hex.DecodeError> {
-    Result.mapOk<[Word8], Key, Hex.DecodeError>(Hex.decode(text), Key.key);
+  public func hexToKey(hex : Text) : Result<Key, Hex.DecodeError> {
+    Result.mapOk<[Word8], Key, Hex.DecodeError>(Hex.decode(hex), Key.key);
   };
+
+  public func hexToKeyOrTrap(hex : Text) : Key {
+    Result.assertUnwrapAny<Key>(hexToKey(hex));
+  };
+
+
+  public func keyToHex(key : Key) : Text {
+    Hex.encode(key.preimage);
+  };
+
 
   public func isId(id : Id) : Bool {
     switch (Hex.decode(id)) {
@@ -57,4 +72,22 @@ module {
       };
     };
   };
+
+  public func principalToHex(principal : Principal) : Text {
+    let base = Iter.toArray<Word8>(Prim.blobOfPrincipal(principal).bytes());
+    let crc8 = CRC8.crc8(base);
+    return Hex.encode(Array.append<Word8>(base, [crc8]));
+  };
+
+
+
+
+
+
+
+
+
+
+
+
 };

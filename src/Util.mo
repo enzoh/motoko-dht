@@ -41,6 +41,18 @@ module {
     return #eq;
   };
 
+  public func eq(a : [Word8], b : [Word8]) : Bool {
+    switch (compare(a, b)) {
+      case (#eq) true;
+      case _ false;
+    };
+  };
+
+
+
+
+
+
   public func hexToKey(hex : Text) : Result<Key, Hex.DecodeError> {
     Result.mapOk<[Word8], Key, Hex.DecodeError>(Hex.decode(hex), Key.key);
   };
@@ -85,6 +97,30 @@ module {
 
 
 
+/*
+ `mapErr`
+ --------
+*/
+public func mapErr<Ok, Err1, Err2>(
+  result : Result<Ok, Err1>,
+  f : Err1 -> Err2,
+) : Result<Ok, Err2> {
+  switch result {
+    case (#ok x) (#ok x);
+    case (#err err) (#err (f err));
+  };
+};
+
+/*
+ `unwrap`
+ --------
+*/
+public func unwrap<Ok>(result : Result<Ok, Any>) : Ok {
+  switch result {
+    case (#ok x) x;
+    case _ Prelude.unreachable();
+  };
+};
 
 
 

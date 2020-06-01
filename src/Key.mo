@@ -47,9 +47,14 @@ module {
   };
 
   public func sort(keys : [Key]) : [Key] {
-    let result = Array.thaw<Key>(keys);
-    sortBy<Key>(compare, result, 0, result.len() - 1);
-    return Array.freeze<Key>(result);
+    let n = keys.len();
+    if (n < 2) {
+      return keys
+    } else {
+      let result = Array.thaw<Key>(keys);
+      sortBy<Key>(compare, result, 0, n - 1);
+      return Array.freeze<Key>(result);
+    };
   };
 
   public func distance(k1 : Key, k2 : Key) : Nat {
@@ -73,30 +78,35 @@ module {
   };
 
   public func sortByDistance(to : Key, keys : [Key]) : [Key] {
-    let result = Array.thaw<Key>(keys);
-    sortBy<Key>(func (k1, k2) {
-      return compareByDistance(to, k1, k2);
-    }, result, 0, result.len() - 1);
-    return Array.freeze<Key>(result);
+    let n = keys.len();
+    if (n < 2) {
+      return keys
+    } else {
+      let result = Array.thaw<Key>(keys);
+      sortBy<Key>(func (k1, k2) {
+        return compareByDistance(to, k1, k2);
+      }, result, 0, n - 1);
+      return Array.freeze<Key>(result);
+    };
   };
 
-  private func sortBy<X>(f : (X, X) -> Int, xs : [var X], l : Nat, r : Nat) {
+  private func sortBy<X>(f : (X, X) -> Int, xs : [var X], l : Int, r : Int) {
     if (l < r) {
       var i = l;
       var j = r;
       var swap  = xs[0];
-      let pivot = xs[(l + r) / 2];
+      let pivot = xs[Prim.abs(l + r) / 2];
       while (i <= j) {
-        while (f(xs[i], pivot) < 0) {
+        while (f(xs[Prim.abs(i)], pivot) < 0) {
           i += 1;
         };
-        while (f(xs[j], pivot) > 0) {
+        while (f(xs[Prim.abs(j)], pivot) > 0) {
           j -= 1;
         };
         if (i <= j) {
-          swap  := xs[i];
-          xs[i] := xs[j];
-          xs[j] := swap;
+          swap := xs[Prim.abs(i)];
+          xs[Prim.abs(i)] := xs[Prim.abs(j)];
+          xs[Prim.abs(j)] := swap;
           i += 1;
           j -= 1;
         };

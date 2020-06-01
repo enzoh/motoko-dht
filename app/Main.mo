@@ -1,4 +1,5 @@
 import Bucket "../src/Bucket";
+import Hex "../vendor/hex/src/Hex";
 import Key "../src/Key";
 import List "mo:base/List";
 import Log "../src/Log";
@@ -12,24 +13,23 @@ actor {
   private type Id = Text;
   private type Key = Key.Key;
 
+  private var axis = null : ?Key ;
   private var bucket = Bucket.nil();
-  private var identity = null : ?Key ;
+  private var rebalance = false;
 
   private let db = RBTree.RBTree<[Word8], [Word8]>(Util.compare);
 
   public func initialize() : async () {
     Log.info("Initializing...");
-    if (Option.isSome(identity)) {
+    if (Option.isSome(axis)) {
       Log.warn("Canister already initialized!");
     };
     let id = await whoami();
-    Log.trace("id = " # id);
-    let peer = Util.hexToKeyOrTrap(id);
-    Log.trace("peer = " # Key.show(peer));
-    bucket := Bucket.insert(peer, bucket);
+    Log.info("I am ic:" # id);
+    let self = Util.hexToKeyOrTrap(id);
+    axis := ?self;
+    bucket := Bucket.insert(self, bucket);
     Log.trace("bucket = " # Bucket.show(bucket));
-    identity := ?peer;
-    Log.info("Ready...");
   };
 
   public shared {
@@ -38,14 +38,10 @@ actor {
     Util.principalToHex(caller);
   };
 
-  public func seed(id : Id) : async () {
-    Log.info("Seeding...");
-    if (Option.isNull(identity)) {
-      Log.error("Canister not yet initialized!");
-    };
-    Log.trace("id = " # id);
+  public func configure(id : Id) : async () {
+    Log.info("Configuring...");
     if (not Util.isId(id)) {
-      Log.error("Invalid identifier!");
+      Log.error("Invalid identifier: " # id);
     };
     let shard = actor ("ic:" # id) : actor {
       ping() : async ();
@@ -60,7 +56,8 @@ actor {
     Log.trace("peer = " # Key.show(peer));
     bucket := Bucket.insert(peer, bucket);
     Log.trace("bucket = " # Bucket.show(bucket));
-    // TODO: await migrate(peer);
+    rebalance := true;
+    Log.trace("rebalance = true");
   };
 
   public shared {
@@ -70,37 +67,41 @@ actor {
     let id = Util.principalToHex(caller);
     Log.trace("id = " # id);
     if (not Util.isId(id)) {
-      Log.error("Invalid identifier!");
+      Log.error("Invalid identifier: " # id);
     };
     let peer = Util.hexToKeyOrTrap(id);
     Log.trace("peer = " # Key.show(peer));
     bucket := Bucket.insert(peer, bucket);
     Log.trace("bucket = " # Bucket.show(bucket));
-    // TODO: await migrate(peer);
+    rebalance := true;
+    Log.trace("rebalance = true");
   };
 
   public func get(key : [Word8]) : async ?[Word8] {
-    await getWithTrace(key, List.nil<Key>());
+    await getWithTrace(key, List.nil());
+  };
+
+  public func put(key : [Word8], value : [Word8]) : async Bool {
+    await putWithTrace(key, value, List.nil());
   };
 
   public func getWithTrace(key : [Word8], route : Bucket) : async ?[Word8] {
     Log.info("Getting...");
-    if (Option.isNull(identity)) {
-      Log.error("Canister not yet initialized!");
+    if (Option.isNull(axis)) {
+      await initialize();
     };
-    let self = Option.unwrap<Key>(identity);
-    let delta = Bucket.difference(bucket, route);
-    Log.trace("delta = " # Bucket.show(delta));
-    if (not List.isNil<Key>(delta)) {
+    let self = Option.unwrap(axis);
+    let diff = Bucket.difference(bucket, route);
+    Log.trace("diff = " # Bucket.show(diff));
+    if (not List.isNil(diff)) {
       bucket := Bucket.union(bucket, route);
       Log.trace("bucket = " # Bucket.show(bucket));
-      for (peer in List.toArray<Key>(delta).vals()) {
-        // TODO: await migrate(peer);
-      };
+      rebalance := true;
+      Log.trace("rebalance = true");
     };
     let to = Key.key(key);
     Log.trace("to = " # Key.show(to));
-    let from = List.toArray<Key>(bucket);
+    let from = List.toArray(bucket);
     Log.trace("from = " # Bucket.show(bucket));
     let closest = Key.sortByDistance(to, from)[0];
     Log.trace("closest = " # Key.show(closest));
@@ -116,40 +117,76 @@ actor {
     };
   };
 
-  public func put(key : [Word8], value : [Word8]) : async () {
-    await putWithTrace(key, value, List.nil<Key>());
-  };
-
-  public func putWithTrace(key : [Word8], value : [Word8], route : Bucket) : async () {
+  public func putWithTrace(key : [Word8], value : [Word8], route : Bucket) : async Bool {
     Log.info("Putting...");
-    if (Option.isNull(identity)) {
-      Log.error("Canister not yet initialized!");
+    if (Option.isNull(axis)) {
+      await initialize();
     };
-    let self = Option.unwrap<Key>(identity);
-    let delta = Bucket.difference(bucket, route);
-    Log.trace("delta = " # Bucket.show(delta));
-    if (not List.isNil<Key>(delta)) {
+    let self = Option.unwrap(axis);
+    let diff = Bucket.difference(bucket, route);
+    Log.trace("diff = " # Bucket.show(diff));
+    if (not List.isNil(diff)) {
       bucket := Bucket.union(bucket, route);
       Log.trace("bucket = " # Bucket.show(bucket));
-      for (peer in List.toArray<Key>(delta).vals()) {
-        // TODO: await migrate(peer);
-      };
+      rebalance := true;
+      Log.trace("rebalance = true");
     };
     let to = Key.key(key);
     Log.trace("to = " # Key.show(to));
-    let from = List.toArray<Key>(bucket);
+    let from = List.toArray(bucket);
     Log.trace("from = " # Bucket.show(bucket));
     let closest = Key.sortByDistance(to, from)[0];
     Log.trace("closest = " # Key.show(closest));
     if (Key.equal(closest, self)) {
       let _ = db.insert(key, value);
+      true;
     } else {
       let id = Util.keyToHex(closest);
       Log.trace("id = " # id);
       let shard = actor ("ic:" # id) : actor {
-        putWithTrace(key : [Word8], value : [Word8], route : Bucket) : async ();
+        putWithTrace(key : [Word8], value : [Word8], route : Bucket) : async Bool;
       };
       await shard.putWithTrace(key, value, Bucket.insert(self, route));
     };
+  };
+
+  /**
+   * Same as `get`, but with hex-encoded arguments. Traps for invalid
+   * arguments. Useful for debugging and testing.
+   */
+  public func getInHex(keyInHex : Text) : async ?Text {
+    switch (Hex.decode(keyInHex)) {
+      case (#ok key) {
+        Option.map(Hex.encode, await get(key));
+      };
+      case (#err (#msg str)) {
+        Log.error("Invalid key: " # str);
+        null;
+      };
+    };
+  };
+
+  /**
+   * Same as `put`, but with hex-encoded arguments. Traps for invalid
+   * arguments. Useful for debugging and testing.
+   */
+  public func putInHex(keyInHex : Text, valueInHex : Text) : async Bool {
+    switch (Hex.decode(keyInHex), Hex.decode(valueInHex)) {
+      case (#ok key, #ok value) {
+        await put(key, value);
+      };
+      case (#err (#msg str), _) {
+        Log.error("Invalid key: " # str);
+        false;
+      };
+      case (_, #err (#msg str)) {
+        Log.error("Invalid value: " # str);
+        false;
+      };
+    };
+  };
+
+  public func size() : async Nat {
+    RBTree.size(db.getTree())
   };
 };

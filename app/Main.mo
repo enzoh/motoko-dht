@@ -12,8 +12,9 @@ actor {
   private type Bucket = Bucket.Bucket;
   private type Id = Text;
   private type Key = Key.Key;
+  private type List<T> = List.List<T>;
 
-  private var axis = null : ?Key ;
+  private var axis = null : ?Key;
   private var bucket = Bucket.nil();
   private var rebalance = false;
 
@@ -35,7 +36,7 @@ actor {
   public shared {
     caller = caller;
   } func whoami() : async Id {
-    Util.principalToHex(caller);
+    Util.principalToId(caller);
   };
 
   public func configure(id : Id) : async () {
@@ -64,7 +65,7 @@ actor {
     caller = caller;
   } func ping() : async () {
     Log.info("Pong...");
-    let id = Util.principalToHex(caller);
+    let id = Util.principalToId(caller);
     Log.trace("id = " # id);
     if (not Util.isId(id)) {
       Log.error("Invalid identifier: " # id);
@@ -75,6 +76,14 @@ actor {
     Log.trace("bucket = " # Bucket.show(bucket));
     rebalance := true;
     Log.trace("rebalance = true");
+  };
+
+  public func peers() : async List<Text> {
+    List.map<Key, Text>(bucket, Util.keyToHex);
+  };
+
+  public func size() : async Nat {
+    RBTree.size(db.getTree());
   };
 
   public func get(key : [Word8]) : async ?[Word8] {
@@ -184,9 +193,5 @@ actor {
         false;
       };
     };
-  };
-
-  public func size() : async Nat {
-    RBTree.size(db.getTree())
   };
 };

@@ -2,10 +2,11 @@
 
 set -e
 
-# DFX=$(which dfx)
-DFX='./../sdk/target/x86_64-unknown-linux-musl/debug/dfx'
+DFX=$(which dfx)
+# DFX='./../sdk/target/x86_64-unknown-linux-musl/debug/dfx'
 
 N=5
+M=100
 
 declare -a NODE
 
@@ -27,7 +28,12 @@ do
     eval ${DFX}' canister call ic:'${NODE[$i]}' configure '\''("'${NODE[$j]}'")'\'''
 done
 
-for i in $(seq 1 1000)
+for i in $(seq 1 $N)
+do
+    eval ${DFX}' canister call ic:'${NODE[$i]}' peers'
+done
+
+for i in $(seq 1 $M)
 do
     i=$(expr $i % $N + 1)
     KEY=$(openssl rand -hex 32)
@@ -35,11 +41,6 @@ do
     VALUE=$(openssl rand -hex 1000)
     echo 'VALUE = '${VALUE^^}
     eval ${DFX}' canister call ic:'${NODE[$i]}' putInHex '\''("'${KEY^^}'","'${VALUE^^}'")'\'''
-done
-
-for i in $(seq 1 $N)
-do
-    eval ${DFX}' canister call ic:'${NODE[$i]}' size'
 done
 
 for i in $(seq 1 $N)
